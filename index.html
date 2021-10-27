@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Secret Santa-o-matic</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>
+    <script type="text/javascript">
+      async function startup(){
+        let pyodide = await loadPyodide({
+          indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/"
+        });
+        await pyodide.loadPackage(["pyyaml", "numpy", "networkx"]);
+        pyodide.runPython(`
+import js
+import networkx as nx
+import numpy as np
+import operator as op
+
+class ArithmeticGraph(nx.DiGraph):
+    def _op(self, arg, op):
+        ret = self.__class__(self.copy())
+        for n1, n2 in arg.edges():
+            if n1 in ret and n2 in ret[n1]:
+                val = op(ret[n1][n2]['weight'], arg[n1][n2]['weight'])
+                if val <= 0:
+                    ret.remove_edge(n1, n2)
+                else:
+                    ret.add_edge(n1, n2, weight=val)
+        return ret
+
+    def __sub__(self, arg):
+        return self._op(arg, op.sub)
+
+    def __mul__(self, arg):
+        return self._op(arg, op.mul)
+
+    def __truediv__(self, arg):
+        return self._op(arg, op.truediv)
+
+    @classmethod
+    def from_cycles(cls, cycles, weight=1):
+        g = cls()
+        for cycle in cycles:
+            nx.add_cycle(g, cycle, weight=weight)
+        return g
+
+def initial(people, partners=nx.Graph()):
+    base = nx.Graph()
+    base.add_weighted_edges_from((giver, giftee, 1)
+                                 for giver in people for giftee in people
+                                 if giver != giftee)
+    base.remove_edges_from(partners.edges())
+    return ArithmeticGraph(base.to_directed())
+
+
+def cycle_length_prod(graph, cycle):
+    nexts = cycle[1:] + cycle[:1]
+    return np.prod([graph[n1][n2]['weight'] for n1, n2 in zip(cycle, nexts)])
+
+
+def choose_cycle(graph):
+    all_cycles = [cycle for cycle in nx.algorithms.simple_cycles(graph)
+                  if len(cycle) == len(graph)]
+    print(f"{len(all_cycles)} candidates")
+    probs = [cycle_length_prod(graph, cycle) for cycle in all_cycles]
+    cdf = np.cumsum([0] + probs)
+    percentages = 100 * np.array(probs) / cdf[-1]
+    print(f"Probability range: {percentages.min():.03f}%-{percentages.max():.03f}%")
+    cdf /= cdf[-1]
+    index = np.nonzero(np.random.uniform() > cdf)[0][-1]
+    print(f"Selected probability: {percentages[index]:.03f}%")
+    return all_cycles[index]
+
+
+class Selector:
+    def __init__(self, people, partners, previous_years, penalty=0.65):
+        base = initial(people, partners)
+        for i, cycles in enumerate(previous_years):
+            base = base * ArithmeticGraph.from_cycles(cycles, 1 - penalty ** i)
+        self._people = people
+        self._partners = partners
+        self._previous_years = previous_years
+
+    def _initialize_graph(self, people, partners, previous_years, penalty):
+        base_graph = nx.Graph()
+        base_graph.add_weighted_edges_from((giver, giftee, 1)
+                                           for giver in people for giftee in people
+                                           if giver != giftee)
+        base_graph.remove_edges_from(nx.Graph(partners).edges())
+        weights = ArithmeticGraph(base.to_directed())
+        for i, year in enumerate(sorted(previous_years, reverse=True)):
+
+            weights = weights * ArithmeticGraph.from_cycles(previous_years[year], 1 - penalty ** i) 
+
+def select(people, partners, previous_years, penalty=0.65):
+    base = initial(people, partners)
+    for i, cycles in enumerate(previous_years):
+        base = base * ArithmeticGraph.from_cycles(cycles, 1 - penalty ** i)
+
+    stoch = nx.stochastic_graph(base)
+
+    res = nx.DiGraph()
+    for comp in nx.algorithms.weakly_connected_components(stoch):
+        nx.add_cycle(res, choose_cycle(stoch.subgraph(comp)))
+
+    return res
+
+def format_selection(selection, people):
+    lines = ['', 'Selection', '---------']
+    for giver in people:
+        lines.append("{}: {}".format(giver, list(selection.successors(giver))[0]))
+
+    return '\\n'.join(lines)
+`);
+        return pyodide
+      }
+      pyodideReadyPromise = startup();
+
+      async function load_yaml(){
+        var file = document.getElementById("file").files[0];
+        var reader = new FileReader();
+        reader.readAsBinaryString(file);
+        reader.onload = evt => {
+          content = evt.target.result;
+          yaml = document.getElementById("yaml");
+          yaml.value = content;
+          yaml.dispatchEvent(new Event("change"));
+        }
+      }
+
+      async function validate(){
+        let pyodide = await pyodideReadyPromise;
+        pyodide.runPython(`
+          import js
+          import yaml
+          textarea = js.document.getElementById("yaml")
+          valid = js.document.getElementById("valid")
+          try:
+              config = yaml.safe_load(textarea.value)
+              textarea.style.backgroundColor = "#ffffff";
+              valid.textContent = "Valid!";
+              valid.style.color = "green";
+          except:
+              textarea.style.backgroundColor = "#ffeeee";
+              valid.textContent = "Invalid!";
+              valid.style.color = "red";
+        `);
+      }
+      validate();
+
+      async function compute(){
+        let pyodide = await pyodideReadyPromise;
+        pyodide.runPython(`
+          cycles = config['cycles']
+          years = sorted(cycles, reverse=True)
+          selection = select(config['people'], nx.Graph(config['partners']),
+                             (cycles[year] for year in years),
+                             0.85)
+          result = format_selection(selection, config['people'])
+          js.document.getElementById("result").value = result
+        `);
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Secret Santa-o-matic</h1>
+    Enter a configuration: <span id="valid" style="color: green">Valid!</span>
+    <div>
+      <textarea id="yaml" rows=20 cols=80 onchange="validate();">people:
+  - Alice
+  - Bob
+  - Carol
+  - Eve
+  - Mallory
+
+partners:
+  - [Alice, Bob]
+  - [Carol, Eve]
+
+cycles:
+  2019:
+    - [Alice, Carol, Bob, Mallory, Eve]
+  2020:
+    - [Alice, Eve, Mallory, Bob, Carol]</textarea>
+    </div>
+    <span>Load Santa config: <input type="file" onchange="load_yaml();" id="file"></span>
+
+    <div>
+      When you're ready, press this button:
+
+      <button type="button" id="button" onclick="compute();">Button</button>
+    </div>
+    <div>
+      <textarea id="result" rows=20 cols=80 disabled></textarea>
+    </div>
+  </body>
+</html>
