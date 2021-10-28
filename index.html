@@ -152,9 +152,10 @@ def format_selection(selection, people):
         pyodide.runPython(`
           cycles = config['cycles']
           years = sorted(cycles, reverse=True)
+          penalty = float(js.document.getElementById("penalty").value)
           selection = select(config['people'], nx.Graph(config['partners']),
                              (cycles[year] for year in years),
-                             0.85)
+                             penalty)
           result = format_selection(selection, config['people'])
           js.document.getElementById("result").value = result
         `);
@@ -192,9 +193,11 @@ cycles:
     <span>Load Santa config: <input type="file" onchange="load_yaml();" id="file"></span>
 
     <div>
-      When you're ready, press this button:
-
-      <button type="button" id="button" onclick="compute();">Button</button>
+      <form action="javascript:compute();">
+      <label for="penalty">Enter penalty:</label>
+      <input id="penalty" type="number" step="0.01" min="0" max="0.99" value="0.85">
+      <button type="submit" id="button">Generate</button>
+      </form>
     </div>
     <div>
       <textarea id="result" rows=20 cols=80 disabled></textarea>
