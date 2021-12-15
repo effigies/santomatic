@@ -21,7 +21,9 @@
 
         // Finalize and alert
         await load_yaml;
-        document.getElementById("loading").textContent = "Ready!"
+        button = document.getElementById("button");
+        button.disabled = false;
+        button.textContent = "Generate";
         return pyodide
       }
       pyodideReadyPromise = startup();
@@ -85,9 +87,8 @@
       <form action="javascript:compute();">
       <label for="penalty">Enter penalty:</label>
       <input id="penalty" type="number" step="0.01" min="0" max="0.99" value="0.85">
-      <button type="submit" id="button">Generate</button>
+      <button type="submit" id="button" disabled>Loading...</button>
       </form>
-      <span id="loading" style="color: green">Loading...</span>
     </div>
     <div>
       <textarea id="result" rows=20 cols=80 disabled></textarea>
