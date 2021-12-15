@@ -1,0 +1,21 @@
+# Full list of participants
+people:
+  - Alice
+  - Bob
+  - Carol
+  - Eve
+  - Mallory
+
+# List of partners, who will be guaranteed not to get each other
+partners:
+  - [Alice, Bob]
+  - [Carol, Eve]
+
+# Previous cycles
+# You are guaranteed not to get the same person as the previous year
+# This constraint is relaxed exponentially with the interval
+cycles:
+  2020:
+    - [Alice, Eve, Mallory, Bob, Carol]
+  2019:
+    - [Alice, Carol, Bob, Mallory, Eve]
