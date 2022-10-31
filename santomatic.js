@@ -1,31 +1,31 @@
 const dependencies = ["pyyaml", "numpy", "networkx"];
 
 // Load the pyodide interpreter and global dependencies
-async function load_pyodide(){
+async function load_pyodide() {
   let pyodide = await loadPyodide({
-    indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/"
+    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/",
   });
   await pyodide.loadPackage(dependencies);
-  return pyodide
+  return pyodide;
 }
 pyodideReadyPromise = load_pyodide();
 
 // Load the example YAML file and set it in the "yaml" element
-async function load_example(){
+async function load_example() {
   let example = await fetch("example.yml");
   document.getElementById("yaml").value = await example.text();
 }
 exampleReadyPromise = load_example();
 
 // Load functions from an accompanying Python module
-async function load_python(){
-  read_python = await fetch("lib.py").then( r => r.text() );
-  return pyodideReadyPromise.then( p => p.runPython(read_python) );
+async function load_python() {
+  read_python = await fetch("lib.py").then((r) => r.text());
+  return pyodideReadyPromise.then((p) => p.runPython(read_python));
 }
 pythonReadyPromise = load_python();
 
 // On page load
-async function main(){
+async function main() {
   // Populate the example and validate it
   await exampleReadyPromise;
   await pythonReadyPromise;
@@ -44,30 +44,30 @@ main();
 
 function debounce(fn) {
   var timer;
-  return function(duration) {
+  return function (duration) {
     clearTimeout(timer);
     timer = setTimeout(fn, duration);
-  }
+  };
 }
 
 /*
  * Functions that respond to user inputs
  */
 
-async function load_yaml(){
+async function load_yaml() {
   var file = document.getElementById("file").files[0];
   var reader = new FileReader();
   reader.readAsBinaryString(file);
-  reader.onload = evt => {
+  reader.onload = (evt) => {
     content = evt.target.result;
     yaml = document.getElementById("yaml");
     yaml.value = content;
     yaml.dispatchEvent(new Event("change"));
-  }
+  };
 }
 
-// YAML validation is just 
-async function _validate(){
+// YAML validation is just
+async function _validate() {
   let pyodide = await pyodideReadyPromise;
   pyodide.runPython(`
     import js
@@ -98,7 +98,7 @@ async function _validate(){
 }
 const validate = debounce(_validate);
 
-async function compute(){
+async function compute() {
   let pyodide = await pyodideReadyPromise;
   pyodide.runPython(`
     cycles = config['cycles']
