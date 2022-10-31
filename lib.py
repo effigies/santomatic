@@ -3,6 +3,7 @@ import networkx as nx
 import numpy as np
 import operator as op
 
+
 class ArithmeticGraph(nx.DiGraph):
     def _op(self, arg, op):
         ret = self.__class__(self.copy())
@@ -31,11 +32,15 @@ class ArithmeticGraph(nx.DiGraph):
             nx.add_cycle(g, cycle, weight=weight)
         return g
 
+
 def initial(people, partners=nx.Graph()):
     base = nx.Graph()
-    base.add_weighted_edges_from((giver, giftee, 1)
-                                 for giver in people for giftee in people
-                                 if giver != giftee)
+    base.add_weighted_edges_from(
+        (giver, giftee, 1)
+        for giver in people
+        for giftee in people
+        if giver != giftee
+    )
     base.remove_edges_from(partners.edges())
     return ArithmeticGraph(base.to_directed())
 
@@ -46,22 +51,28 @@ def cycle_length_prod(graph, cycle):
 
 
 def choose_cycle(graph):
-    all_cycles = [cycle for cycle in nx.algorithms.simple_cycles(graph)
-                  if len(cycle) == len(graph)]
-    print(f"{len(all_cycles)} candidates")
+    all_cycles = [
+        cycle
+        for cycle in nx.algorithms.simple_cycles(graph)
+        if len(cycle) == len(graph)
+    ]
+    print(f'{len(all_cycles)} candidates')
     probs = [cycle_length_prod(graph, cycle) for cycle in all_cycles]
     cdf = np.cumsum([0] + probs)
     percentages = 100 * np.array(probs) / cdf[-1]
-    print(f"Probability range: {percentages.min():.03f}%-{percentages.max():.03f}%")
+    print(
+        f'Probability range: {percentages.min():.03f}%-{percentages.max():.03f}%'
+    )
     cdf /= cdf[-1]
     index = np.nonzero(np.random.uniform() > cdf)[0][-1]
-    print(f"Selected probability: {percentages[index]:.03f}%")
+    print(f'Selected probability: {percentages[index]:.03f}%')
     return all_cycles[index]
+
 
 def select(people, partners, previous_years, penalty=0.65):
     base = initial(people, partners)
     for i, cycles in enumerate(previous_years):
-        base = base * ArithmeticGraph.from_cycles(cycles, 1 - penalty ** i)
+        base = base * ArithmeticGraph.from_cycles(cycles, 1 - penalty**i)
 
     stoch = nx.stochastic_graph(base)
 
@@ -71,9 +82,12 @@ def select(people, partners, previous_years, penalty=0.65):
 
     return res
 
+
 def format_selection(selection, people):
     lines = ['', 'Selection', '---------']
     for giver in people:
-        lines.append("{}: {}".format(giver, list(selection.successors(giver))[0]))
+        lines.append(
+            '{}: {}'.format(giver, list(selection.successors(giver))[0])
+        )
 
     return '\n'.join(lines)
