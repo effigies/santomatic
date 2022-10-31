@@ -2,9 +2,7 @@ const dependencies = ["pyyaml", "numpy", "networkx"];
 
 // Load the pyodide interpreter and global dependencies
 async function load_pyodide() {
-  let pyodide = await loadPyodide({
-    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/",
-  });
+  let pyodide = await loadPyodide();
   await pyodide.loadPackage(dependencies);
   return pyodide;
 }
